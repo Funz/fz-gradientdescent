@@ -99,12 +99,12 @@ get_initial_design.GradientDescent <- function(obj, input_variables, output_vari
       x0 <- x0[1:d]
     }
     x0 <- matrix(x0, ncol = d)
-    names(x0) <- names(input_variables)
+    colnames(x0) <- names(input_variables)
     x0 <- to01(x0, obj$state$input)
-    names(x0) <- names(input_variables)
+    colnames(x0) <- names(input_variables)
   } else {
     x0 <- matrix(runif(d), ncol = d)
-    names(x0) <- names(input_variables)
+    colnames(x0) <- names(input_variables)
   }
   
   if (ncol(x0) > 1) {
@@ -114,15 +114,16 @@ get_initial_design.GradientDescent <- function(obj, input_variables, output_vari
   
   # Ask for finite differences around x0
   x <- askfinitedifferences(x0, obj$options$epsilon)
-  names(x) <- names(input_variables)
+  colnames(x) <- names(input_variables)
   
   # Convert from [0,1] to actual bounds and return as list of points
   x_real <- from01(x, obj$state$input)
   
-  # Convert matrix to list of points
+  # Convert matrix to list of points, preserving names
   points <- list()
   for (i in 1:nrow(x_real)) {
     point <- as.list(x_real[i, ])
+    names(point) <- names(obj$state$input)
     points[[i]] <- point
   }
   
@@ -152,9 +153,14 @@ get_next_design.GradientDescent <- function(obj, X, Y) {
   }
   
   # Convert X from list of points to matrix
-  X_mat <- do.call(rbind, lapply(X, function(point) {
+  X_list <- lapply(X, function(point) {
     unlist(point[names(obj$state$input)])
-  }))
+  })
+  X_mat <- do.call(rbind, X_list)
+  if (is.null(dim(X_mat))) {
+    # Single row case
+    X_mat <- matrix(X_mat, nrow = 1)
+  }
   colnames(X_mat) <- names(obj$state$input)
   
   # Convert to [0,1] space
@@ -226,15 +232,16 @@ get_next_design.GradientDescent <- function(obj, X, Y) {
   
   # Ask for finite differences around xnext
   x <- askfinitedifferences(xnext, obj$options$epsilon)
-  names(x) <- names(obj$state$input)
+  colnames(x) <- names(obj$state$input)
   
   # Convert from [0,1] to actual bounds
   x_real <- from01(x, obj$state$input)
   
-  # Convert matrix to list of points
+  # Convert matrix to list of points, preserving names
   points <- list()
   for (i in 1:nrow(x_real)) {
     point <- as.list(x_real[i, ])
+    names(point) <- names(obj$state$input)
     points[[i]] <- point
   }
   
@@ -256,9 +263,14 @@ get_analysis.GradientDescent <- function(obj, X, Y) {
   }
   
   # Convert X from list of points to matrix
-  X_mat <- do.call(rbind, lapply(X, function(point) {
+  X_list <- lapply(X, function(point) {
     unlist(point[names(obj$state$input)])
-  }))
+  })
+  X_mat <- do.call(rbind, X_list)
+  if (is.null(dim(X_mat))) {
+    # Single row case
+    X_mat <- matrix(X_mat, nrow = 1)
+  }
   colnames(X_mat) <- names(obj$state$input)
   
   # Find optimum
@@ -422,20 +434,24 @@ gradient <- function(xd, yd) {
 
 # Helper function: from01 (not a method, internal use only)
 from01 <- function(X, inp) {
-  nX <- names(X)
+  nX <- colnames(X)
+  if (is.null(nX)) nX <- names(X)
   for (i in 1:ncol(X)) {
     namei <- nX[i]
-    X[, i] <- X[, i] * (inp[[namei]][[2]] - inp[[namei]][[1]]) + inp[[namei]][[1]]
+    bounds <- inp[[namei]]
+    X[, i] <- X[, i] * (bounds[2] - bounds[1]) + bounds[1]
   }
   return(X)
 }
 
 # Helper function: to01 (not a method, internal use only)
 to01 <- function(X, inp) {
-  nX <- names(X)
+  nX <- colnames(X)
+  if (is.null(nX)) nX <- names(X)
   for (i in 1:ncol(X)) {
     namei <- nX[i]
-    X[, i] <- (X[, i] - inp[[namei]][[1]]) / (inp[[namei]][[2]] - inp[[namei]][[1]])
+    bounds <- inp[[namei]]
+    X[, i] <- (X[, i] - bounds[1]) / (bounds[2] - bounds[1])
   }
   return(X)
 }
