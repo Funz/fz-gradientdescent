@@ -153,15 +153,7 @@ get_next_design.GradientDescent <- function(obj, X, Y) {
   }
   
   # Convert X from list of points to matrix
-  X_list <- lapply(X, function(point) {
-    unlist(point[names(obj$state$input)])
-  })
-  X_mat <- do.call(rbind, X_list)
-  if (is.null(dim(X_mat))) {
-    # Single row case
-    X_mat <- matrix(X_mat, nrow = 1)
-  }
-  colnames(X_mat) <- names(obj$state$input)
+  X_mat <- points_to_matrix(X, names(obj$state$input))
   
   # Convert to [0,1] space
   X_01 <- to01(X_mat, obj$state$input)
@@ -263,15 +255,7 @@ get_analysis.GradientDescent <- function(obj, X, Y) {
   }
   
   # Convert X from list of points to matrix
-  X_list <- lapply(X, function(point) {
-    unlist(point[names(obj$state$input)])
-  })
-  X_mat <- do.call(rbind, X_list)
-  if (is.null(dim(X_mat))) {
-    # Single row case
-    X_mat <- matrix(X_mat, nrow = 1)
-  }
-  colnames(X_mat) <- names(obj$state$input)
+  X_mat <- points_to_matrix(X, names(obj$state$input))
   
   # Find optimum
   if (isTRUE(obj$options$yminimization)) {
@@ -407,6 +391,20 @@ get_analysis_tmp.GradientDescent <- function(obj, X, Y) {
   ))
 }
 
+# Helper function: points_to_matrix (not a method, internal use only)
+points_to_matrix <- function(X, input_names) {
+  X_list <- lapply(X, function(point) {
+    unlist(point[input_names])
+  })
+  X_mat <- do.call(rbind, X_list)
+  if (is.null(dim(X_mat))) {
+    # Single row case
+    X_mat <- matrix(X_mat, nrow = 1)
+  }
+  colnames(X_mat) <- input_names
+  return(X_mat)
+}
+
 # Helper function: askfinitedifferences (not a method, internal use only)
 askfinitedifferences <- function(x, epsilon) {
   xd <- matrix(x, nrow = 1)
@@ -439,7 +437,13 @@ from01 <- function(X, inp) {
   for (i in 1:ncol(X)) {
     namei <- nX[i]
     bounds <- inp[[namei]]
-    X[, i] <- X[, i] * (bounds[2] - bounds[1]) + bounds[1]
+    # Validate bounds structure
+    if (!is.numeric(bounds) || length(bounds) != 2) {
+      stop(paste("Invalid bounds for variable", namei, ": expected c(min, max)"))
+    }
+    min_val <- bounds[1]
+    max_val <- bounds[2]
+    X[, i] <- X[, i] * (max_val - min_val) + min_val
   }
   return(X)
 }
@@ -451,7 +455,13 @@ to01 <- function(X, inp) {
   for (i in 1:ncol(X)) {
     namei <- nX[i]
     bounds <- inp[[namei]]
-    X[, i] <- (X[, i] - bounds[1]) / (bounds[2] - bounds[1])
+    # Validate bounds structure
+    if (!is.numeric(bounds) || length(bounds) != 2) {
+      stop(paste("Invalid bounds for variable", namei, ": expected c(min, max)"))
+    }
+    min_val <- bounds[1]
+    max_val <- bounds[2]
+    X[, i] <- (X[, i] - min_val) / (max_val - min_val)
   }
   return(X)
 }
