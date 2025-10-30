@@ -1,0 +1,25 @@
+# R artifacts
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# Temporary files
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.html
+*.json
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
